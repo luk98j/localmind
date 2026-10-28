@@ -4,7 +4,7 @@ import { object, POLICY, text } from './security.js';
 const noteFields = { title: { type: 'string', maxLength: 300 }, body: { type: 'string', maxLength: 100000 }, parentId: { type: ['string', 'null'] }, thoughtAuthor: { type: 'string', maxLength: 200 } };
 const tool = (name: string, description: string, properties: object, required: string[], readOnlyHint = true) => ({ name, description: description + ' Never submit secrets or credentials. Read knowledge://agent-policy first.', inputSchema: { type: 'object', properties, required, additionalProperties: false }, annotations: { readOnlyHint, destructiveHint: false, openWorldHint: false } });
 export function registerMcp(app: FastifyInstance, core: Core) {
-  const tools = [tool('list_notes', 'List the note tree.', {}, []), tool('note_history', 'Read signed history; thoughtAuthor is unverified.', { noteId: { type: 'string' } }, ['noteId']), tool('create_note', 'Create a note signed by the local service identity.', noteFields, Object.keys(noteFields), false), tool('update_note', 'Update using exact expectedHeads. Conflicts require a human in the UI.', { noteId: { type: 'string' }, expectedHeads: { type: 'array', items: { type: 'string' } }, ...noteFields }, ['noteId', 'expectedHeads', ...Object.keys(noteFields)], false)];
+  const tools = [tool('agent_policy', 'Read mandatory LocalMind rules before accessing notes. No credentials are accepted.', {}, []), tool('list_notes', 'List the note tree.', {}, []), tool('note_history', 'Read signed history; thoughtAuthor is unverified.', { noteId: { type: 'string' } }, ['noteId']), tool('create_note', 'Create a note signed by the local service identity.', noteFields, Object.keys(noteFields), false), tool('update_note', 'Update using exact expectedHeads. Conflicts require a human in the UI.', { noteId: { type: 'string' }, expectedHeads: { type: 'array', items: { type: 'string' } }, ...noteFields }, ['noteId', 'expectedHeads', ...Object.keys(noteFields)], false)];
   app.post('/mcp', async (req, reply) => {
     const rpc = object(req.body), id = rpc.id ?? null;
     if (rpc.jsonrpc !== '2.0' || typeof rpc.method !== 'string' || (rpc.id !== undefined && typeof rpc.id !== 'string' && typeof rpc.id !== 'number')) return reply.code(400).send({ jsonrpc: '2.0', id, error: { code: -32600, message: 'Invalid request' } });
@@ -22,6 +22,7 @@ export function registerMcp(app: FastifyInstance, core: Core) {
         case 'tools/call': {
           const params = object(rpc.params), args = object(params.arguments ?? {}); let result: unknown;
           switch (params.name) {
+            case 'agent_policy': result = { policy: POLICY }; break;
             case 'list_notes': result = core.list(); break;
             case 'note_history': result = core.history(text(args.noteId, 100)); break;
             case 'create_note': result = core.write(null, args, []); break;

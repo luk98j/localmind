@@ -33,13 +33,17 @@ Copy `config.example.json` to `config.json` to change the port or data directory
 - Git sync skeleton exports/imports encrypted JSON event files. It makes **no network calls** and cannot clone, fetch, add remotes or push.
 - Agents receive a no-secrets policy during MCP initialization, in every tool description, through a policy resource, and in [AGENTS.md](AGENTS.md). HTTP and MCP share the same pre-write secret detector.
 
+## Codex integration
+
+Run `npm run codex:setup -- --project /absolute/path/to/your-project` to install a project-local MCP configuration and agent rules. The local credential helper reads the API token directly for Codex; no token is copied into configuration. With LocalMind running, `npm run codex:setup -- --check` verifies the handshake and policy without reading or changing notes. See [the Codex setup guide](integrations/codex/README.md) for desktop, CLI, trust, authentication and removal instructions.
+
 ## Agent integration (MCP)
 
 Endpoint: `http://127.0.0.1:4317/mcp`. Use a client that supports Streamable HTTP and custom `Authorization: Bearer <local token>` headers. Configure the token through your client's protected credential configuration; never commit it. The service runs in the same process as HTTP; no second stdio server is needed.
 
 This MVP implements the JSON-response, stateless subset of the **2025-03-26, 2025-06-18 and 2025-11-25** protocol revisions: `initialize`, initialized notifications, `ping`, `tools/list`, `tools/call`, `resources/list`, and `resources/read`. It does not claim the newer 2026 protocol, streaming, subscriptions or server-to-client sampling support. GET and DELETE return 405. Send `Accept: application/json, text/event-stream` and the negotiated `MCP-Protocol-Version` header after initialization.
 
-Tools: `list_notes`, `note_history`, `create_note`, `update_note`. Read `knowledge://agent-policy` before working. The policy is also returned in `initialize.instructions`. Agent clients must arrange policy loading; LocalMind cannot force an arbitrary model to follow instructions.
+Tools: `agent_policy`, `list_notes`, `note_history`, `create_note`, `update_note`. Read `knowledge://agent-policy` before working. The policy is also returned in `initialize.instructions`. Agent clients must arrange policy loading; LocalMind cannot force an arbitrary model to follow instructions.
 
 Required create fields: `title`, `body`, `parentId` (`null` for root), `thoughtAuthor` (empty string allowed). Updates additionally require `noteId` and the exact array of `expectedHeads` returned by `list_notes`. MCP intentionally provides no conflict-resolution, trust-management or Git tool.
 

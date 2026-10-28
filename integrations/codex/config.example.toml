@@ -1,0 +1,10 @@
+# Portable fallback for clients without http_headers_helper.
+# Set LOCALMIND_API_TOKEN in the environment of the process launching Codex.
+# NEVER replace the variable name with a literal token or commit credentials.
+[mcp_servers.localmind]
+url = "http://127.0.0.1:4317/mcp"
+bearer_token_env_var = "LOCALMIND_API_TOKEN"
+enabled_tools = ["agent_policy", "list_notes", "note_history", "create_note", "update_note"]
+default_tools_approval_mode = "writes"
+startup_timeout_sec = 20
+tool_timeout_sec = 30

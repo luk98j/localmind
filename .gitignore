@@ -10,3 +10,4 @@ api-token
 *.sqlite-wal
 *.sqlite-shm
 .env.*
+/.codex/config.toml

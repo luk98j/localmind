@@ -114,7 +114,8 @@ test('MCP initializes, exposes mandatory policy, calls tools, and blocks secrets
   const init = await rpc('initialize', { protocolVersion: '2025-11-25', capabilities: {}, clientInfo: { name: 'test', version: '1' } });
   assert.equal(init.result.protocolVersion, '2025-11-25'); assert.match(init.result.instructions, /NEVER/);
   assert.match((await rpc('resources/read', { uri: 'knowledge://agent-policy' })).result.contents[0].text, /password manager/);
-  assert.equal((await rpc('tools/list')).result.tools.length, 4);
+  assert.equal((await rpc('tools/list')).result.tools.length, 5);
+  assert.match((await rpc('tools/call', { name: 'agent_policy', arguments: {} })).result.content[0].text, /NEVER/);
   assert.ok(!(await rpc('tools/list')).result.tools.some((t: any) => /resolve/.test(t.name)));
   const bad = await rpc('tools/call', { name: 'create_note', arguments: note('api_key=not-a-real-secret') }); assert.equal(bad.result.isError, true); assert.equal(core.events().length, 0);
   await rpc('tools/call', { name: 'create_note', arguments: note() }); assert.equal(core.events().length, 1);
