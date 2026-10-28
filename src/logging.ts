@@ -4,7 +4,7 @@ export type LogEvent = 'app.started' | 'app.stopped' | 'app.failed' | 'http.comp
 export type LogFields = { method?: string; route?: string; status?: number; durationMs?: number; port?: number; tool?: string; rpc?: string };
 export type AppLog = (event: LogEvent, fields?: LogFields) => void;
 export const silentLog: AppLog = () => {};
-const routes = new Set(['/api/info', '/api/notes', '/api/notes/:id', '/api/notes/:id/history', '/api/notes/:id/resolve', '/api/trusted', '/api/sync/plan', '/api/sync/export', '/api/sync/import', '/mcp']);
+const routes = new Set(['/api/info', '/api/notes', '/api/notes/:id', '/api/notes/:id/history', '/api/notes/:id/resolve', '/api/trusted', '/api/sync/plan', '/api/sync/export', '/api/sync/import', '/api/integrations/codex', '/api/integrations/codex/preview', '/api/integrations/codex/connect', '/mcp']);
 const tools = new Set(['agent_policy', 'list_notes', 'note_history', 'create_note', 'update_note']);
 const rpcs = new Set(['initialize', 'ping', 'tools/list', 'tools/call', 'resources/list', 'resources/read']);
 export function createLogger(dataDir: string, { maxBytes = 1024 * 1024, output = (line: string) => process.stdout.write(line) } = {}): { log: AppLog; file: string } {

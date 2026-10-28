@@ -1,5 +1,6 @@
-import { existsSync, readFileSync, writeFileSync, mkdirSync, lstatSync } from 'node:fs';
+import { existsSync, readFileSync, mkdirSync, lstatSync, realpathSync, openSync, fstatSync, closeSync, writeFileSync, chmodSync, renameSync, unlinkSync, constants } from 'node:fs';
 import { resolve, dirname, join } from 'node:path';
+import { randomUUID } from 'node:crypto';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { parseArgs } from 'node:util';
 import { readToken } from './codex-headers.mjs';
@@ -39,26 +40,83 @@ export function mergeBlock(existing, block, first, last) {
   if (begin === -1 || finish < begin || existing.indexOf(first, begin + first.length) !== -1 || existing.indexOf(last, finish + last.length) !== -1) throw new Error('Malformed managed block; review the existing file manually');
   return existing.slice(0, begin) + block + existing.slice(finish + last.length);
 }
-function readOptional(file) {
-  if (!existsSync(file)) return '';
-  const stat = lstatSync(file);
-  if (stat.isSymbolicLink() || !stat.isFile() || stat.size > 1024 * 1024) throw new Error('Refusing an unsafe configuration or instructions file');
-  return readFileSync(file, 'utf8');
+export function readOptional(file) {
+  let stat;
+  try { stat = lstatSync(file); } catch (error) { if (error.code === 'ENOENT') return null; throw error; }
+  if (stat.isSymbolicLink() || !stat.isFile() || stat.nlink !== 1 || stat.size > 1024 * 1024) throw new Error('Refusing an unsafe configuration or instructions file');
+  const fd = openSync(file, constants.O_RDONLY | (constants.O_NOFOLLOW ?? 0));
+  try {
+    const opened = fstatSync(fd);
+    if (!opened.isFile() || opened.nlink !== 1 || opened.size > 1024 * 1024 || opened.ino !== stat.ino || opened.dev !== stat.dev) throw new Error('Refusing a changed configuration file');
+    return readFileSync(fd, 'utf8');
+  } finally { closeSync(fd); }
 }
-export function install(project, options) {
-  const codexDir = join(resolve(project), '.codex');
-  if (existsSync(codexDir) && (lstatSync(codexDir).isSymbolicLink() || !lstatSync(codexDir).isDirectory())) throw new Error('Unsafe .codex directory');
-  const configFile = join(codexDir, 'config.toml'), agentsFile = join(resolve(project), 'AGENTS.md');
-  const current = readOptional(configFile), agents = readOptional(agentsFile);
+export function prepareInstall(project, options) {
+  project = resolve(project);
+  if (!lstatSync(project).isDirectory() || lstatSync(project).isSymbolicLink()) throw new Error('Choose an existing project folder, not a symbolic link');
+  project = realpathSync(project);
+  const codexDir = join(project, '.codex');
+  // lstat also catches dangling symlinks, which existsSync would overlook.
+  let codexStat;
+  try { codexStat = lstatSync(codexDir); } catch (error) { if (error.code !== 'ENOENT') throw error; }
+  if (codexStat && (codexStat.isSymbolicLink() || !codexStat.isDirectory())) throw new Error('Unsafe .codex directory');
+  const configFile = join(codexDir, 'config.toml'), agentsFile = join(project, 'AGENTS.md'), ignoreFile = join(project, '.gitignore');
+  const configBefore = readOptional(configFile), agentsBefore = readOptional(agentsFile), ignoreBefore = readOptional(ignoreFile);
+  const current = configBefore ?? '', agents = agentsBefore ?? '';
   const outside = current.includes(start) ? mergeBlock(current, '', start, end) : current;
   if (/(?:\[\s*mcp_servers\s*\.\s*["']?localmind["']?(?:\s*\]|\s*\.)|\bmcp_servers\s*\.\s*localmind\s*[.=]|\blocalmind\s*=)/m.test(outside)) throw new Error('An unmanaged localmind server exists; review it manually');
   if (/^\s*\[\s*["']mcp_servers["']/m.test(outside) || /^\s*mcp_servers\s*=/m.test(outside)) throw new Error('Unsupported MCP configuration style; merge the printed configuration manually');
   const config = mergeBlock(current, configBlock(options), start, end);
   const instructions = mergeBlock(agents, agentInstructions, agentStart, agentEnd);
-  mkdirSync(codexDir, { recursive: true, mode: 0o700 });
-  if (config !== current) writeFileSync(configFile, config, { mode: 0o600 });
-  if (instructions !== agents) writeFileSync(agentsFile, instructions, { mode: 0o644 });
-  return { configFile, agentsFile };
+  const ignore = mergeBlock(ignoreBefore ?? '', '# BEGIN LOCALMIND LOCAL CONFIG\n/.codex/config.toml\n# END LOCALMIND LOCAL CONFIG', '# BEGIN LOCALMIND LOCAL CONFIG', '# END LOCALMIND LOCAL CONFIG');
+  return { project, files: [
+    { path: configFile, before: configBefore, after: config, mode: 0o600 },
+    { path: agentsFile, before: agentsBefore, after: instructions, mode: agentsBefore === null ? 0o644 : lstatSync(agentsFile).mode & 0o777 },
+    { path: ignoreFile, before: ignoreBefore, after: ignore, mode: ignoreBefore === null ? 0o644 : lstatSync(ignoreFile).mode & 0o777 }
+  ] };
+}
+export function applyInstallPlans(plans) {
+  const files = plans.flatMap(plan => plan.files.map(file => ({ ...file })));
+  if (new Set(files.map(file => file.path)).size !== files.length) throw new Error('Choose distinct project folders');
+  const staged = [], written = [], retained = new Set();
+  const assertUnchanged = () => {
+    for (const file of files) {
+      const parent = dirname(file.path);
+      if (existsSync(parent) && (lstatSync(parent).isSymbolicLink() || !lstatSync(parent).isDirectory() || realpathSync(parent) !== parent)) throw new Error('Refusing an unsafe project folder');
+      if (readOptional(file.path) !== file.before) throw new Error('Project files changed. Review the changes again.');
+    }
+  };
+  const stage = (path, content, mode) => {
+    const temporary = join(dirname(path), '.localmind-' + randomUUID() + '.tmp');
+    staged.push(temporary);
+    writeFileSync(temporary, content, { flag: 'wx', mode }); chmodSync(temporary, mode);
+    return temporary;
+  };
+  try {
+    assertUnchanged();
+    for (const file of files) {
+      if (file.before === file.after) continue;
+      mkdirSync(dirname(file.path), { recursive: true, mode: 0o700 });
+      file.previousMode = file.before === null ? null : lstatSync(file.path).mode & 0o777;
+      file.rollback = file.before === null ? null : stage(file.path, file.before, file.previousMode);
+      file.temporary = stage(file.path, file.after, file.mode);
+    }
+    assertUnchanged();
+    for (const file of files) if (file.temporary) { renameSync(file.temporary, file.path); written.push(file); }
+  } catch (error) {
+    let restored = true;
+    for (const file of written.reverse()) {
+      try { if (file.rollback) renameSync(file.rollback, file.path); else unlinkSync(file.path); }
+      catch { restored = false; if (file.rollback) retained.add(file.rollback); }
+    }
+    if (!restored) throw new Error('Could not restore all project files. Review the selected folders before retrying.');
+    throw error;
+  } finally { for (const path of staged) if (!retained.has(path)) { try { unlinkSync(path); } catch {} } }
+}
+export function install(project, options) {
+  const plan = prepareInstall(project, options);
+  applyInstallPlans([plan]);
+  return { configFile: plan.files[0].path, agentsFile: plan.files[1].path, ignoreFile: plan.files[2].path };
 }
 export async function checkConnection({ url, tokenFile, fetchImpl = fetch }) {
   localUrl(url);

@@ -2,14 +2,25 @@
 
 LocalMind connects to local Codex clients through Streamable HTTP MCP. This integration adds no runtime dependency and does not call a model API. It supplies a project configuration, agent instructions, a credential helper and a read-only connection check.
 
-## Recommended setup (macOS / Linux)
+## Recommended setup in the web UI (macOS / Linux)
+
+1. Start LocalMind with `./start.sh` (or double-click `LocalMind.command` on macOS), then unlock the web workspace.
+2. In the sidebar, choose **Codex → Connect projects**.
+3. Paste full project folder paths, one per line. You can add up to 32 projects in one operation. On macOS, select a folder in Finder and press **Option + Command + C** to copy its full path. The browser does not scan your folders or discover paths automatically.
+4. Choose **Review changes**. Each project shows whether `.codex/config.toml`, `AGENTS.md` and `.gitignore` will be created, updated or left unchanged. Existing file contents are not displayed or sent back to the browser.
+5. Confirm the local file changes and the shared-notebook notice, then choose **Connect projects**. If files changed after preview, review again. The selected folders are remembered only in this notebook's local data directory; use the list to review or refresh them later. Projects configured previously through the terminal appear in that list after you add them through this screen.
+6. Keep LocalMind running, open each project in Codex, trust it if prompted, and start a **new local chat**. Ask: “Read the LocalMind policy and list my notes.”
+
+**All connected projects can read and write the same notebook. Adding a project is not access isolation.** Use separate LocalMind instances with distinct ports and data directories when notebooks must be separate. Writes still follow the agent rules and Codex approval settings.
+
+The setup screen writes marked blocks in local project files. It does not create Git remotes, run Git, commit, push, modify global Codex settings or trust a project on your behalf. The ignore block excludes `/.codex/config.toml`; it cannot untrack a file that was already committed. Review your project diff before committing. Setup requires existing folders owned by the current user and rejects symbolic-link project targets, notebook-data folders and unsafe files. It remains intended for a trusted local filesystem, not adversarial concurrent file modifications. Windows currently uses the fallback below.
+
+## Alternative terminal setup (macOS / Linux)
 
 1. In the LocalMind repository, install and build the application, then keep it running:
 
    ```sh
-   npm ci
-   npm run build
-   npm start
+   ./start.sh
    ```
 
 2. In another terminal, install the integration for the project where you want Codex to use LocalMind:
@@ -25,9 +36,9 @@ LocalMind connects to local Codex clients through Streamable HTTP MCP. This inte
 
 4. Ask Codex to read LocalMind's policy and list the notes. In the CLI, `/mcp` shows active MCP servers. `codex mcp get localmind` shows the registered project configuration when the project is trusted. Do not paste credential-helper output into the conversation.
 
-The installer edits only the selected project's `.codex/config.toml` and `AGENTS.md`. It preserves existing content and updates its own marked blocks on repeated runs. It refuses recognizable unmanaged duplicate definitions, malformed markers and symlinked target files. Unusual TOML layouts should be merged manually; this is not a general TOML editor. Review the diff before committing instructions. Installation does not mark a project trusted, change global Codex settings, start LocalMind, or change sandbox permissions.
+The installer edits only the selected project's `.codex/config.toml`, `AGENTS.md` and `.gitignore`. It preserves existing content and updates its own marked blocks on repeated runs. It refuses recognizable unmanaged duplicate definitions, malformed markers and symlinked target files. Unusual TOML layouts should be merged manually; this is not a general TOML editor. Review the diff before committing instructions. Installation does not mark a project trusted, change global Codex settings, start LocalMind, or change sandbox permissions.
 
-The generated config contains absolute machine-local paths and should be excluded from version control. LocalMind's own `.gitignore` already excludes it. In another project, add `/.codex/config.toml` to that project's ignore rules or keep it in a local Git exclude file. The generated block itself contains no token, but may coexist with other private settings in that file. Do not publish the whole file.
+The generated config contains absolute machine-local paths and should be excluded from version control. Setup adds a managed `/.codex/config.toml` ignore rule, but an ignore rule cannot untrack an already committed file. The generated block itself contains no token, but may coexist with other private settings in that file. Do not publish the whole file.
 
 ## Authentication without copying credentials
 
@@ -65,6 +76,6 @@ For availability across multiple projects, the printed managed block can be revi
 - **Authentication unavailable:** verify the token file exists and has owner-only permissions. Never paste its value into a conversation. Setup can be run before first start, but the helper and check require the generated token file.
 - **Missing tools:** confirm project trust, open a new local session, and inspect `/mcp`. In a sandbox that isolates loopback, allow the local endpoint through the client's normal approval/policy mechanism; the installer never disables sandboxing.
 - **Existing unmanaged config:** use the printed block and merge it manually; the installer will not overwrite that server definition.
-- **Remove integration:** remove only the LocalMind marked block from `.codex/config.toml` and the marked integration section from `AGENTS.md`. Keep other project rules and servers. Notebook data is unaffected.
+- **Remove integration:** remove only the LocalMind marked block from `.codex/config.toml` and the marked integration section from `AGENTS.md`. Keep other project rules and servers. Remove the managed ignore block only after checking whether the remaining config still needs to be kept private. The UI's remembered list is historical, not a live status check; removal from project files does not erase that local list. Notebook data is unaffected.
 
 Implementation follows the official [Codex MCP documentation](https://learn.chatgpt.com/docs/extend/mcp) and [configuration reference](https://learn.chatgpt.com/docs/config-file/config-reference). Header helpers are for local HTTP MCP connections; this integration does not set up OAuth or a public endpoint.

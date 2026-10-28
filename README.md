@@ -69,7 +69,13 @@ These are optional source-folder launchers, not signed native `.dmg`/`.msi` inst
 
 ## Codex integration
 
-Run `npm run codex:setup -- --project /absolute/path/to/your-project` to install a project-local MCP configuration and agent rules. The local credential helper reads the API token directly for Codex; no token is copied into configuration. With LocalMind running, `npm run codex:setup -- --check` verifies the handshake and policy without reading or changing notes. See [the Codex setup guide](integrations/codex/README.md) for desktop, CLI, trust, authentication and removal instructions.
+On macOS/Linux, open the LocalMind web workspace and choose **Codex → Connect projects** in the sidebar. Paste your projects' full folder paths, one per line (up to 32 at once). On macOS, select a folder in Finder and press **Option + Command + C** to copy its full path. Choose **Review changes**, inspect the proposed files, confirm the shared-notebook notice, then choose **Connect projects**. No terminal setup command or token copying is required.
+
+LocalMind preserves existing content and updates its marked blocks in each project's `.codex/config.toml`, `AGENTS.md` and `.gitignore`. The ignore rule excludes the machine-local config; it does not untrack a file already committed to Git. The screen remembers previously configured folders locally, so you can review or refresh them later. It does not scan your disk, create projects, change global Codex settings, mark projects trusted, run Git, commit or upload anything. Existing folders must be owned by your account. Symbolic-link targets and unsafe configuration files are rejected. Windows currently uses the documented environment-variable fallback rather than this setup screen.
+
+Keep LocalMind running, open each selected project in Codex, trust it if prompted, and **start a new local chat** to load the integration. Ask Codex to read the LocalMind policy and list the notes. Existing chats do not reload their tools automatically. **All connected projects can access the same notebook. Project setup is not data isolation**; use separate LocalMind instances with separate data directories and ports for separate notebooks.
+
+Terminal setup remains available: `npm run codex:setup -- --project /absolute/path/to/your-project`. The local credential helper reads the API token directly for Codex; no token is copied into configuration. With LocalMind running, `npm run codex:setup -- --check` verifies the handshake and policy without reading or changing notes. See [the Codex setup guide](integrations/codex/README.md) for desktop, CLI, trust, authentication and removal instructions.
 
 ## Agent integration (MCP)
 
@@ -101,8 +107,13 @@ All `/api/*` and `/mcp` requests require the bearer token. The UI assets are pub
 | `POST /api/sync/plan` | Validate a proposed HTTPS GitHub/Bitbucket `remote`; does not persist or connect it |
 | `POST /api/sync/export` | Export signed encrypted events to `data/exchange/` |
 | `POST /api/sync/import` | Atomically validate and import events from `data/exchange/` |
+| `GET /api/integrations/codex` | Setup availability and locally remembered project paths |
+| `POST /api/integrations/codex/preview` | Preview local file actions for `projects` (absolute folder paths); no writes |
+| `POST /api/integrations/codex/connect` | Apply the same `projects` with the preview's `previewToken` and explicit `approved: true` |
 
 The resolve endpoint records a human-review attestation, not cryptographic proof of human presence. A holder of the full local token can call it directly. Do not distribute this token to untrusted agents.
+
+Project setup has the same full-token authorization boundary. Preview seals bind the selected paths, current file contents, proposed contents and local project registry to the running server; changed files or a server restart require a new preview. The API returns file actions, never the contents of existing config files, which may hold unrelated private settings. Setup routes are deliberately absent from MCP tools. The installer stages replacement files, checks for changes, then renames them; it attempts rollback on ordinary write failures. A multi-file setup is not a crash-proof filesystem transaction or protection against a malicious local process racing file operations. Review selected project diffs before committing. Project paths are stored only in `data/codex-projects.json` (owner-only on POSIX), separately from note events, and are not exported with notes or logged.
 
 ## Storage, cryptography and trust
 

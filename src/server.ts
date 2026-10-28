@@ -4,6 +4,7 @@ import { readFileSync } from 'node:fs';
 import { Core } from './core.js';
 import { GitSync } from './sync.js';
 import { registerMcp } from './mcp.js';
+import { registerCodexProjects } from './codex.js';
 import { silentLog, type AppLog } from './logging.js';
 import { InputError, object, text, POLICY } from './security.js';
 export function createApp(core: Core, token: string, port = 4317, log: AppLog = silentLog) {
@@ -48,5 +49,6 @@ export function createApp(core: Core, token: string, port = 4317, log: AppLog = 
   app.post('/api/sync/plan', async req => sync.plan(text(object(req.body).remote, 1000)));
   app.post('/api/sync/export', async () => sync.export());
   app.post('/api/sync/import', async () => sync.import());
+  registerCodexProjects(app, core.dir, port);
   registerMcp(app, core, log); return app;
 }
