@@ -11,3 +11,4 @@ api-token
 *.sqlite-shm
 .env.*
 /.codex/config.toml
+/.localmind/

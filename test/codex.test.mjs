@@ -9,9 +9,9 @@ import { readToken } from '../scripts/codex-headers.mjs';
 import { Core } from '../dist/src/core.js';
 import { createApp } from '../dist/src/server.js';
 const fakeToken = 'a'.repeat(64);
-function fixture(t) {
+function fixture(t, autoCleanup = true) {
   const dir = mkdtempSync(join(tmpdir(), 'localmind-codex-'));
-  t.after(() => rmSync(dir, { recursive: true, force: true }));
+  if (autoCleanup) t.after(() => rmSync(dir, { recursive: true, force: true }));
   const tokenFile = join(dir, 'api-token');
   writeFileSync(tokenFile, fakeToken, { mode: 0o600 });
   return { dir, tokenFile, url: 'http://127.0.0.1:4317/mcp' };
@@ -33,7 +33,7 @@ test('installer refuses unmanaged duplicate servers, symlinks and malformed bloc
     writeFileSync(config, existing); assert.throws(() => install(f.dir, f)); assert.equal(readFileSync(config, 'utf8'), existing);
     assert.equal(readFileSync(join(f.dir, 'AGENTS.md'), 'utf8'), 'Original instructions');
   }
-  rmSync(config); symlinkSync(f.tokenFile, config); assert.throws(() => install(f.dir, f), /unsafe/);
+  if (process.platform !== 'win32') { rmSync(config); symlinkSync(f.tokenFile, config); assert.throws(() => install(f.dir, f), /unsafe/); }
 });
 test('credential helper reads owner-only files and emits no credential on failure', t => {
   const f = fixture(t); assert.equal(readToken(f.tokenFile), fakeToken);
@@ -60,8 +60,8 @@ test('nonlocal or credential-bearing URLs are rejected before the token can be s
   assert.equal(localUrl('http://127.0.0.1:4317/mcp'), 'http://127.0.0.1:4317/mcp');
 });
 test('connection check performs the MCP handshake and confirms policy without reading notes', async t => {
-  const f = fixture(t), core = new Core(join(f.dir, 'workspace')), app = createApp(core, fakeToken);
-  t.after(async () => { await app.close(); core.close(); });
+  const f = fixture(t, false), core = new Core(join(f.dir, 'workspace')), app = createApp(core, fakeToken);
+  t.after(async () => { await app.close(); core.close(); rmSync(f.dir, { recursive: true, force: true }); });
   const methods = [];
   const fetchImpl = async (url, options) => {
     assert.equal(options.redirect, 'error'); methods.push(JSON.parse(options.body).method);

@@ -4,9 +4,31 @@ A lightweight local knowledge notebook for people and coding agents. One Node.js
 
 **MVP, not an audited enterprise security product. Never store passwords or secrets in notes.**
 
-## Quick start
+## One-command start
 
-Requires Node.js 24 or newer and npm. Node's built-in `node:sqlite` may print an experimental-feature warning on some supported releases.
+On macOS or Linux, open a terminal in the downloaded/cloned LocalMind folder and run:
+
+```sh
+./start.sh
+```
+
+If an archive extractor did not preserve executable permissions, `bash start.sh` is an equivalent one-command start. On macOS, you can also double-click `LocalMind.command` in Finder. On Windows, double-click `Start.cmd`, or run it from the project folder:
+
+```bat
+Start.cmd
+```
+
+The launcher uses your existing Node.js 24+ and npm when available. Otherwise, it downloads a private copy of the official Node.js runtime into `.localmind/runtime/` and verifies the archive against a SHA-256 checksum committed with the application **before extraction and execution**. No administrator access, system Node installation, Docker or machine-wide execution-policy change is needed. First preparation needs internet access to Node.js and the npm registry. The portable downloads cover macOS, glibc-based Linux and 64-bit Windows on x64/ARM64.
+
+On first run, the launcher installs locked dependencies with lifecycle scripts disabled, builds the application, starts the local server and opens your browser. Later runs reuse prepared dependencies and build output until the relevant files change. Notebook data and logs are excluded from preparation fingerprints and are never uploaded by the launcher. The `.localmind/` cache stays out of Git.
+
+Open <http://127.0.0.1:4317> if the browser does not open automatically. The login screen still requires your local API token from `data/api-token`; the launcher does not put credentials in browser URLs, configuration or console output. Keep the launcher window open and use **Ctrl+C** to stop the server. Closing a browser tab does not stop the application. If this same notebook is already running on the configured port, the launcher opens the existing instance. Stop the running server before restarting after a source update so it loads the new code. This feature does not install a login item or start the application when your computer boots.
+
+For a server without automatic browser opening, use `./start.sh --no-open` or `Start.cmd --no-open`. Use `--prepare-only` to install/build without creating or starting a notebook. On a later run with unchanged dependencies and a cached runtime, preparation does not require a download. If you move the application again, rerun Codex setup to refresh its absolute paths.
+
+## Manual terminal start
+
+The original development workflow remains supported. It requires Node.js 24+ and npm already installed:
 
 ```sh
 npm ci
@@ -14,13 +36,25 @@ npm run build
 npm start
 ```
 
-Open <http://127.0.0.1:4317>. Read the token from `data/api-token` and paste it into the login form. The browser holds it in memory only; reloading requires unlocking again. Never copy the token into a note, issue, screenshot, or repository.
+Run `npm test` for the full test suite. Node's built-in `node:sqlite` may print an experimental-feature warning on some supported releases.
 
-```sh
-npm test
-```
+Copy `config.example.json` to `config.json` to change the port or data directory. Configuration is optional. `LOCALMIND_CONFIG`, `LOCALMIND_PORT` and `LOCALMIND_DATA_DIR` override defaults. Paths are relative to the project directory for the launcher, and to the launch directory for `npm start`. Binding is always IPv4 loopback (`127.0.0.1`); exposing the application through a proxy is outside this MVP's scope.
 
-Copy `config.example.json` to `config.json` to change the port or data directory. Configuration is optional. `LOCALMIND_CONFIG`, `LOCALMIND_PORT` and `LOCALMIND_DATA_DIR` override defaults. Paths are relative to the launch directory. Binding is always IPv4 loopback (`127.0.0.1`); exposing the application through a proxy is outside this MVP's scope. Run the commands from the project root.
+## Application logs
+
+The terminal displays application events automatically. The same JSON-lines diagnostics are saved to **`data/logs/localmind.log`**, or `logs/localmind.log` inside your configured data directory. The application prints the exact location at startup. Logs cover application start/stop and startup failure, API/MCP request outcomes, rejected MCP calls, HTTP status, route templates and durations.
+
+Log fields are allowlisted: **no note titles/bodies, declared authors, token values, Authorization headers, query strings, request bodies, arbitrary error objects or stack traces are written to application logs**. Unrecognized method/tool/route values become generic labels. Files use owner-only permissions on POSIX; Windows access protection follows your user-directory ACLs.
+
+A log rotates at approximately 1 MiB. The application retains the active file and up to three archives (`.1`, `.2`, `.3`). These diagnostic files are separate from the signed event history and are excluded from Git. If file logging becomes unavailable, the console reports a generic warning and continues displaying events.
+
+For troubleshooting, first read the terminal and the last entries in the log. Share only reviewed, redacted diagnostics; never share the API token, identity file, complete database or notebook contents. Dependency installation and compiler diagnostics are displayed by npm/TypeScript in the launcher terminal; they are not copied into the application log.
+
+## Launcher maintenance
+
+The portable runtime version is pinned in `scripts/node-version`; archive hashes are in `scripts/node-shasums.txt`, sourced from the official [Node.js release checksums](https://nodejs.org/dist/v24.22.2/SHASUMS256.txt). Runtime upgrades require updating the version and checksums together and rerunning platform verification. `LOCALMIND_PORTABLE_NODE=1` forces the portable runtime path for maintenance/testing. The launcher downloads executable archives, never a remote shell script. It does not install Git, configure a remote, synchronize notebooks or change Codex settings automatically.
+
+These are optional source-folder launchers, not signed native `.dmg`/`.msi` installers. Native packaging can be added separately while keeping both the one-command launcher and normal npm workflow.
 
 ## Features
 

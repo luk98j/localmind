@@ -1,9 +1,10 @@
 import type { FastifyInstance } from 'fastify';
 import { Core } from './core.js';
+import { silentLog, type AppLog } from './logging.js';
 import { object, POLICY, text } from './security.js';
 const noteFields = { title: { type: 'string', maxLength: 300 }, body: { type: 'string', maxLength: 100000 }, parentId: { type: ['string', 'null'] }, thoughtAuthor: { type: 'string', maxLength: 200 } };
 const tool = (name: string, description: string, properties: object, required: string[], readOnlyHint = true) => ({ name, description: description + ' Never submit secrets or credentials. Read knowledge://agent-policy first.', inputSchema: { type: 'object', properties, required, additionalProperties: false }, annotations: { readOnlyHint, destructiveHint: false, openWorldHint: false } });
-export function registerMcp(app: FastifyInstance, core: Core) {
+export function registerMcp(app: FastifyInstance, core: Core, log: AppLog = silentLog) {
   const tools = [tool('agent_policy', 'Read mandatory LocalMind rules before accessing notes. No credentials are accepted.', {}, []), tool('list_notes', 'List the note tree.', {}, []), tool('note_history', 'Read signed history; thoughtAuthor is unverified.', { noteId: { type: 'string' } }, ['noteId']), tool('create_note', 'Create a note signed by the local service identity.', noteFields, Object.keys(noteFields), false), tool('update_note', 'Update using exact expectedHeads. Conflicts require a human in the UI.', { noteId: { type: 'string' }, expectedHeads: { type: 'array', items: { type: 'string' } }, ...noteFields }, ['noteId', 'expectedHeads', ...Object.keys(noteFields)], false)];
   app.post('/mcp', async (req, reply) => {
     const rpc = object(req.body), id = rpc.id ?? null;
@@ -27,13 +28,15 @@ export function registerMcp(app: FastifyInstance, core: Core) {
             case 'note_history': result = core.history(text(args.noteId, 100)); break;
             case 'create_note': result = core.write(null, args, []); break;
             case 'update_note': result = core.write(text(args.noteId, 100), args, args.expectedHeads); break;
-            default: return { jsonrpc: '2.0', id, error: { code: -32602, message: 'Unknown tool' } };
+            default: log('mcp.rejected', { rpc: rpc.method, tool: params.name }); return { jsonrpc: '2.0', id, error: { code: -32602, message: 'Unknown tool' } };
           }
+          log('mcp.completed', { rpc: rpc.method, tool: params.name });
           return ok({ content: [{ type: 'text', text: JSON.stringify(result) }] });
         }
-        default: return { jsonrpc: '2.0', id, error: { code: -32601, message: 'Method not found' } };
+        default: log('mcp.rejected', { rpc: rpc.method }); return { jsonrpc: '2.0', id, error: { code: -32601, message: 'Method not found' } };
       }
     } catch (error) {
+      log('mcp.rejected', { rpc: rpc.method, tool: rpc.params?.name });
       if (rpc.method === 'tools/call') return ok({ isError: true, content: [{ type: 'text', text: error instanceof Error && 'statusCode' in error ? error.message : 'Tool failed; check arguments and local workspace' }] });
       return { jsonrpc: '2.0', id, error: { code: -32602, message: 'Invalid parameters' } };
     }

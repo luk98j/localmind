@@ -4,10 +4,15 @@ permissions:
   contents: read
 jobs:
   test:
-    runs-on: ubuntu-latest
     strategy:
+      fail-fast: false
       matrix:
-        node: [24, 26]
+        os: [ubuntu-latest, macos-latest, windows-latest]
+        node: [24]
+        include:
+          - os: ubuntu-latest
+            node: 26
+    runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -16,3 +21,21 @@ jobs:
           cache: npm
       - run: npm ci --ignore-scripts
       - run: npm test
+      - name: One-command preparation (macOS / Linux)
+        if: runner.os != 'Windows'
+        run: ./start.sh --prepare-only
+      - name: One-command preparation (Windows)
+        if: runner.os == 'Windows'
+        shell: cmd
+        run: Start.cmd --prepare-only
+      - name: Verified portable runtime (macOS / Linux)
+        if: runner.os != 'Windows' && matrix.node == 24
+        env:
+          LOCALMIND_PORTABLE_NODE: '1'
+        run: ./start.sh --prepare-only
+      - name: Verified portable runtime (Windows)
+        if: runner.os == 'Windows'
+        env:
+          LOCALMIND_PORTABLE_NODE: '1'
+        shell: cmd
+        run: Start.cmd --prepare-only

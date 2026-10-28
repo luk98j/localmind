@@ -4,8 +4,9 @@ import { readFileSync } from 'node:fs';
 import { Core } from './core.js';
 import { GitSync } from './sync.js';
 import { registerMcp } from './mcp.js';
+import { silentLog, type AppLog } from './logging.js';
 import { InputError, object, text, POLICY } from './security.js';
-export function createApp(core: Core, token: string, port = 4317) {
+export function createApp(core: Core, token: string, port = 4317, log: AppLog = silentLog) {
   if (token.length < 32) throw new Error('API token must have at least 32 characters');
   const app = Fastify({ logger: false, bodyLimit: 1024 * 1024 }); const sync = new GitSync(core);
   let window = Date.now(), calls = 0;
@@ -21,6 +22,9 @@ export function createApp(core: Core, token: string, port = 4317) {
       const supplied = Buffer.from(req.headers.authorization?.replace(/^Bearer /, '') ?? ''), expected = Buffer.from(token);
       if (supplied.length !== expected.length || !timingSafeEqual(supplied, expected)) return reply.code(401).send({ error: 'Bearer token required' });
     }
+  });
+  app.addHook('onResponse', async (req, reply) => {
+    if (req.url.startsWith('/api/') || req.url.startsWith('/mcp')) log('http.completed', { method: req.method, route: req.routeOptions.url ?? 'unmatched', status: reply.statusCode, durationMs: reply.elapsedTime });
   });
   app.setErrorHandler((error, _, reply) => {
     const code = error && typeof error === 'object' && 'statusCode' in error ? error.statusCode : 500;
@@ -44,5 +48,5 @@ export function createApp(core: Core, token: string, port = 4317) {
   app.post('/api/sync/plan', async req => sync.plan(text(object(req.body).remote, 1000)));
   app.post('/api/sync/export', async () => sync.export());
   app.post('/api/sync/import', async () => sync.import());
-  registerMcp(app, core); return app;
+  registerMcp(app, core, log); return app;
 }
