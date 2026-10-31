@@ -1,5 +1,7 @@
 # LocalMind: mandatory agent rules
 
+Read [CONTRIBUTING.md](CONTRIBUTING.md) for the development workflow, verification and publishing rules.
+
 - NEVER submit or store passwords, secrets, API keys, access tokens, private keys, recovery codes, session cookies or credentials in notes, titles, attribution, changelogs or tool arguments.
 - Encryption does not authorize secret storage. Use a password manager. A note may contain a generic reference without the secret value.
 - If you receive a secret, do not repeat it or send it to LocalMind. Request redacted input. Recommend revocation if a secret has been exposed.

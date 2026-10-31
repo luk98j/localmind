@@ -151,6 +151,10 @@ Import rejects symlinks, unexpected file names, oversized files, more than 5,000
 
 Publishing **this source code** as an open-source project is separate from synchronizing notebook data. This repository excludes runtime data by default.
 
+## Contributing
+
+Read [CONTRIBUTING.md](CONTRIBUTING.md) and the mandatory [agent rules](AGENTS.md) before contributing. The guide covers safe notebook access, event integrity, isolated tests and source publication.
+
 ## Development and verification
 
 Only Fastify is a direct runtime dependency. TypeScript and Node types are development dependencies. SQLite, cryptography, file access and the test runner are built into Node.
