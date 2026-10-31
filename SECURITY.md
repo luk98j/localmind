@@ -6,4 +6,4 @@ Never store credentials in notes. Never include actual secrets, personal noteboo
 
 If you find a vulnerability, avoid a public issue containing exploit details or sensitive data. Use GitHub's private vulnerability reporting when the repository owner enables it, or contact the maintainer through a separately verified private channel. No reporting address is assumed or invented here.
 
-Current boundaries and limitations are documented in README.md. Protect the device account and backups, keep Node.js and dependencies updated, and review all exchanged data before connecting a real repository.
+Current boundaries and limitations are documented in the [technical reference](docs/technical-reference.md). Protect the device account and backups, keep Node.js and dependencies updated, and review all exchanged data before connecting a real repository.

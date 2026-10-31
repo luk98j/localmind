@@ -2,7 +2,7 @@
 
 LocalMind is a lightweight local knowledge notebook for people and coding agents. Keep setup simple, dependencies minimal, and notebook data under the user's control.
 
-This guide applies to human contributors and coding agents. Read [AGENTS.md](AGENTS.md) before making changes. Use [README.md](README.md) for startup and architecture details, and inspect the implementation when documentation and an in-progress change differ.
+This guide applies to human contributors and coding agents. Read [AGENTS.md](AGENTS.md) before making changes. Use [README.md](README.md) for startup and the [technical reference](docs/technical-reference.md) for architecture details, and inspect the implementation when documentation and an in-progress change differ.
 
 ## Before changing code
 
