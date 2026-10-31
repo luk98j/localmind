@@ -12,7 +12,8 @@
     "dev": "npm run build && npm start",
     "test": "npm run build && node --test dist/test/*.test.js test/*.test.mjs",
     "codex:setup": "node scripts/setup-codex.mjs",
-    "launch": "node scripts/launch.mjs"
+    "launch": "node scripts/launch.mjs",
+    "package:mac": "node scripts/package-mac.mjs"
   },
   "dependencies": {
     "fastify": "^5.6.2"

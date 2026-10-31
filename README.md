@@ -9,7 +9,7 @@ A local knowledge notebook for people and coding agents. Keep useful notes and d
 
 Built with Node.js, TypeScript, Fastify and SQLite. No Docker or cloud account required.
 
-**MVP. Never store passwords or secrets in notes.** Desktop packaging and the multi-notebook setup are still being finalized.
+**MVP. Never store passwords or secrets in notes.** Desktop builds and the multi-notebook setup are still being finalized.
 
 ## Quick start
 
@@ -38,6 +38,8 @@ The launcher prepares Node.js 24+ if needed, installs dependencies, builds Local
 3. Keep the terminal window open. Press **Ctrl+C** to stop LocalMind.
 
 Application logs are saved to `data/logs/localmind.log`. Custom data directories change these paths; the terminal shows the exact locations.
+
+For the experimental desktop package, see [macOS installation](docs/macos-installation.md).
 
 ## Connect a coding agent
 
